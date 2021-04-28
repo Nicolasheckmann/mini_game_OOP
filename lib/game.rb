@@ -1,22 +1,24 @@
 class Game
-    attr_accessor :human_player, :enemies
+    attr_accessor :human_player, :enemies_in_sight, :player_left
 
     def initialize(player_name)
         self.human_player = HumanPlayer.new(player_name)
-        self.enemies = Array.new(4) { |i| Player.new("SpaceBot_#{i}") } # crée un nouvel array avec 4 bot 
+        self.enemies_in_sight = []
+        self.player_left = 10
     end
 
     def kill_player(bot_to_kill)
-        enemies.delete(bot_to_kill)
+        enemies_in_sight.delete(bot_to_kill)
+        self.player_left -= 1
     end
 
     def is_still_ongoing?
-        human_player.life_points > 0 && enemies.any? ? true : false
+        human_player.life_points > 0 && player_left > 0
     end
 
     def show_players
         human_player.show_state
-        enemies.each { |bot| bot.show_state }
+        enemies_in_sight.each { |bot| bot.show_state }
     end
 
     def menu
@@ -28,7 +30,7 @@ class Game
         puts "|                                         |"
         puts "|Attaquer un SpaceBot en vue :            |"
         puts "|"
-        enemies.each_with_index { |bot, i| print "|> #{i} - "; bot.show_state; }
+        enemies_in_sight.each_with_index { |bot, i| print "|> #{i+1} - "; bot.show_state; }
         puts "|                                         |"
         puts "|> q - pour quitter le jeu                |"
         puts "|                                         |"
@@ -37,60 +39,23 @@ class Game
     end
 
     def menu_choice(player_action)
-        case player_action
-        when "a"
+        if player_action.to_i > 0
+            if enemies_in_sight.length > player_action.to_i - 1
+                puts
+                human_player.attacks(enemies_in_sight[player_action.to_i - 1])
+                if enemies_in_sight[player_action.to_i - 1].life_points <= 0
+                    kill_player(enemies_in_sight[player_action.to_i - 1])
+                end
+            else
+                puts "Ce SpaceBot est déjà mort !"
+                puts
+                self.menu_choice(gets.chomp)
+            end
+        elsif player_action == "a"
             puts human_player.search_weapon
-        when "s"
+        elsif player_action == "s"
             puts human_player.search_health_pack
-        when "0"
-            if enemies.length > 0
-                puts
-                human_player.attacks(enemies[0])
-                if enemies[0].life_points <= 0
-                    kill_player(enemies[0])
-                end
-            else
-                puts "Ce SpaceBot est déjà mort !"
-                puts
-                self.menu_choice(gets.chomp)
-            end
-        when "1" 
-            if enemies.length > 1
-                puts
-                human_player.attacks(enemies[1])
-                if enemies[1].life_points <= 0
-                    kill_player(enemies[1])
-                end
-            else
-                puts "Ce SpaceBot est déjà mort !"
-                puts
-                self.menu_choice(gets.chomp)
-            end
-        when "2" 
-            if enemies.length > 2
-                puts
-                human_player.attacks(enemies[2])
-                if enemies[2].life_points <= 0
-                    kill_player(enemies[2])
-                end
-            else
-                puts "Ce SpaceBot est déjà mort !"
-                puts
-                self.menu_choice(gets.chomp)
-            end
-        when "3" 
-            if enemies.length > 3
-                puts
-                human_player.attacks(enemies[3])
-                if enemies[3].life_points <= 0
-                    kill_player(enemies[3])
-                end
-            else
-                puts "Ce SpaceBot est déjà mort !"
-                puts
-                self.menu_choice(gets.chomp)
-            end
-        when "q"
+        elsif player_action == "q"
             begin
                 exit!
             rescue SystemExit
@@ -101,17 +66,43 @@ class Game
             puts
             self.menu_choice(gets.chomp)
         end
+
+
     end
 
-    def enemies_attack
-        if enemies.length > 0
+    def enemies_in_sight_attack
+        if enemies_in_sight.length > 0
             puts "Les SpaceBots passent à l'attaque !"
             puts
-            enemies.each do |bot|
+            enemies_in_sight.each do |bot|
                 if bot.life_points > 0 && human_player.life_points > 0
                 bot.attacks(human_player)
                 end
             end
+        end
+    end
+
+    def new_players_in_sight
+        if player_left != enemies_in_sight.length
+            random_outcome = rand(1..6)
+            case random_outcome
+            when 1
+                puts "Aucun nouveau SpaceBot en vue..."
+            when 2..4
+                enemies_in_sight <<  Player.new("SpaceBot_#{rand(1..9999)}") # on push un nouveau bot dont le nom correspond au nombre d'enemis existants
+                puts "1 nouveau SpaceBot en vue !"
+            when 5..6
+                if player_left - enemies_in_sight.length > 1
+                    enemies_in_sight <<  Player.new("SpaceBot_#{rand(1..9999)}")
+                    enemies_in_sight <<  Player.new("SpaceBot_#{rand(1..9999)}")
+                    puts "2 nouveaux SpaceBots en vue !!!"
+                else
+                    enemies_in_sight <<  Player.new("SpaceBot_#{rand(1..9999)}")
+                    puts "1 nouveaus SpaceBot en vue !"
+                end
+            end
+        else
+            puts "Tous les SpaceBots sont déjà en vue"
         end
     end
 
@@ -129,7 +120,7 @@ class Game
 
     def continue?
         puts
-        puts "Appuis sur entrée pour continuer"
+        puts "------->  Entrée pour continuer  <---------"
         gets
         puts
     end
